@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Project List</title>
+    <base th:href="${#request.getContextPath()}+'/'">
+
+    <div th:replace="include"></div>
+
+    <style type="text/css">
+        .data-row {
+            padding-left: 30px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+<div class="content" style="padding: 20px;">
+    <form id="searchForm" class="form-inline" style="margin-bottom: 10px;">
+        <div class="form-group">
+            <input type="text" class="form-control" name="projectName" size="20" placeholder="projectName"/>
+        </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-success" onclick="doSearch()"> Query </button>
+            <button type="button" class="btn btn-default" onclick="addNode(0)"> Add </button>
+        </div>
+    </form>
+    <div class="panel panel-default">
+        <div class="panel-heading" role="tab">
+            <h4 class="panel-title">
+                <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    Projects
+                </a>
+            </h4>
+        </div>
+        <div class="panel-body" style="overflow-x: auto;">
+            <table id="orderList-table"></table>
+        </div>
+    </div>
+    <div style="clear:both;height:30px;">&nbsp;</div>
+</div>
+
+<div th:replace="scripts"></div>
+</body>
+<script type="text/javascript" th:inline="javascript">
+$(document).ready(function(){
+    queryForList();
+    $(document.body).height(700);
+});
+
+function doSearch() {
+    $('#orderList-table').bootstrapTable('refresh', {
+        silent : true, query: {pageIndex: 1}
+    });
+}
+
+function addNode(id) {
+    dialog({title: 'loading... ',
+        url: '/api/dependent/get?id=' + id,
+        onclose: function () {
+
+        },
+        oniframeload: function () {
+            this.title('Project Info');
+        },
+        width: '1100',
+    }).showModal();
+}
+
+//查询历史交易记录
+function queryForList() {
+    $('#orderList-table').bootstrapTable({
+        method : 'post',
+        url : '/api/project/query',
+        queryParams : function(params) {
+            return $.extend($("#searchForm").formToJSON(), params);
+        },
+        cache : false,
+        striped : true,
+        pagination : true,
+        showRefresh : false,
+        sidePagination : 'server',
+        pageSize : 10,
+        striped : true,
+        pageList : [ 10, 20, 100, 1000 ],
+        minimumCountColumns : 2,
+        clickToSelect : true,
+        formatShowingRows : function(pageFrom, pageTo, totalRows) {
+            return '显示第 ' + pageFrom + ' 到第 ' + pageTo + ' 条记录，总共 ' + totalRows + ' 条记录';
+        },
+        formatRecordsPerPage : function(pageNumber) {
+            return '每页显示 ' + pageNumber + ' 条记录';
+        },
+        columns : [
+            [
+                {
+                    field: "id",
+                    title: "ID"
+                },
+                {
+                    field: "gmtCreate",
+                    title: "Time"
+                },
+                {
+                    field: "projectName",
+                    title: "Name"
+                },
+                {
+                    field: "groupId",
+                    title: "Group Id"
+                },
+                {
+                    field: "remoteUrl",
+                    title: "Remote URL"
+                },
+                {
+                    field : 'id',
+                    title : 'Operation',
+                    formatter : function(value, row, index) {
+                        let strArray = new Array();
+                        strArray.push('<a href="javascript:void(0)" onclick="addNode(\'' + row.id + '\')">Show Detail</a>');
+                        strArray.push('&nbsp;&nbsp;');
+                        strArray.push('<a href="javascript:void(0)" onclick="deleteNode(\'' + row.id + '\')">Delete</a>');
+                        return strArray.join('');
+                    }
+                }
+            ]
+        ],
+        responseHandler : function(res) {
+            return {
+                rows : res.items,
+                total : res.total
+            }
+        }
+    });
+}
+
+function deleteNode(id) {
+    $.postEx("/api/project/delete", {'projectId': id}, function(jsonData){
+        if(0 == jsonData.code){
+            $.message('Task Deleted.', {title: 'hint'});
+        } else {
+            $.message(jsonData.message, {title: 'hint'});
+        }
+    }, "json");
+}
+</script>
+</html>
+
+

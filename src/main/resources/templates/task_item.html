@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Commit Detail</title>
+    <base th:href="${#request.getContextPath()}+'/'">
+
+    <div th:replace="include"></div>
+
+    <style type="text/css">
+        .data-row {
+            padding-left: 30px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+<div class="content" style="padding: 20px;">
+    <div th:if="${null != error}">
+        <label class="has-error" th:text="${error}"></label>
+    </div>
+    <div th:if="${null == error}">
+        <form id="searchForm" class="form-inline" style="margin-bottom: 10px;">
+            <input type="hidden" name="taskId" th:value="${taskInfo.id}"/>
+            <div class="form-group">
+                <input type="text" class="form-control" name="artifactId" size="20" placeholder="artifactId"/>
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control" name="dependentName" size="20" placeholder="dependent project"/>
+            </div>
+            <div class="form-group">
+                <input type="checkbox" class="checkbox" name="onlyMatched" value="true"/> Matched Versions &nbsp;
+            </div>
+            <div class="form-group">
+                <input type="checkbox" class="checkbox" name="matchedHistory" value="true"/> Matched History &nbsp;
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-success" onclick="doSearch()"> Query </button>
+            </div>
+        </form>
+        <div class="panel panel-default">
+            <div class="panel-heading" role="tab">
+                <h4 class="panel-title">
+                    <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        Related Projects
+                    </a>
+                </h4>
+            </div>
+            <div class="panel-body" style="overflow-x: auto;">
+                <table id="orderList-table" style="height: 3000px;"></table>
+            </div>
+        </div>
+    </div>
+    <div style="clear:both;height:30px;">&nbsp;</div>
+</div>
+
+<div th:replace="scripts"></div>
+</body>
+<script type="text/javascript" th:inline="javascript">
+    $(document).ready(function(){
+        queryForList();
+        $(document.body).height(8000);
+    });
+
+    function doSearch() {
+        $('#orderList-table').bootstrapTable('refresh', {
+            silent : true, query: {pageIndex: 1}
+        });
+    }
+
+    //查询历史交易记录
+    function queryForList() {
+        $('#orderList-table').bootstrapTable({
+            method : 'post',
+            url : '/api/task/queryForItem',
+            queryParams : function(params) {
+                return $.extend($("#searchForm").formToJSON(), params);
+            },
+            cache : false,
+            striped : true,
+            pagination : true,
+            showRefresh : false,
+            sidePagination : 'server',
+            pageSize : 5,
+            striped : true,
+            pageList : [ 5, 10, 20, 100, 1000 ],
+            minimumCountColumns : 2,
+            clickToSelect : true,
+            formatShowingRows : function(pageFrom, pageTo, totalRows) {
+                return '显示第 ' + pageFrom + ' 到第 ' + pageTo + ' 条记录，总共 ' + totalRows + ' 条记录';
+            },
+            formatRecordsPerPage : function(pageNumber) {
+                return '每页显示 ' + pageNumber + ' 条记录';
+            },
+            columns : [
+                [
+                    {
+                        field: "id",
+                        title: "ID"
+                    },
+                    {
+                        field: "gmtCreate",
+                        title: "Time"
+                    },
+                    {
+                        field: "artifactId",
+                        title: "Artifact ID"
+                    },
+                    {
+                        field: "foundVersions",
+                        title: "Found Versions"
+                    },
+                    {
+                        field: "dependentName",
+                        title: "Project"
+                    },
+                    {
+                        field: "statusCode",
+                        title: "Status Code"
+                    },
+                    {
+                        field: "matchedVersion",
+                        title: "Matched Version"
+                    },
+                    {
+                        field: "otherVersion",
+                        title: "History Revision"
+                    },
+                    {
+                        field : 'orderStatus',
+                        title : 'OrderStatus'
+                    }
+                ]
+            ],
+            responseHandler : function(res) {
+                return {
+                    rows : res.items,
+                    total : res.total
+                }
+            }
+        });
+    }
+</script>
+</html>

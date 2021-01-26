@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Commit Detail</title>
+    <base th:href="${#request.getContextPath()}+'/'">
+
+    <div th:replace="include"></div>
+
+    <style type="text/css">
+        .data-row {
+            padding-left: 30px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+<div class="content" style="padding: 20px;">
+
+    <div th:if="${null != error}">
+        <label class="has-error" th:text="${error}"></label>
+    </div>
+    <div th:if="${null == error}">
+        Project
+        <label class="control-label" th:text="${taskInfo.projectName}" style="font-weight: bold; font-size: 18px;"></label>
+        <form id="itemForm" class="form-inline" style="margin-bottom: 10px;">
+            <input type="hidden" name="taskId" th:value="${taskInfo.id}"/>
+            <div class="form-group">
+                <input type="text" class="form-control" name="orderStatus" size="20" placeholder="orderStatus" th:value="${taskInfo.orderStatus}"/>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-success" onclick="saveNode()"> Save </button>
+                <button type="button" class="btn btn-default" onclick="triggerTask()">Trigger Task</button>
+            </div>
+        </form>
+        <div class="panel panel-default">
+            <div class="panel-heading" role="tab">
+                <h4 class="panel-title">
+                    <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        Found Versions
+                    </a>
+                </h4>
+            </div>
+            <div class="panel-body" style="overflow-x: auto;">
+                <div id="tags-total">
+                    Found <label class="control-label" th:text="${matchedRows}"></label> matched rows. &nbsp; &nbsp;
+                </div>
+                <table class="bootstrap-table table table-striped table-bordered">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Create Time</th>
+                        <th>Artifact ID</th>
+                        <th>Found Versions</th>
+                        <th>Matched Count</th>
+                        <th>Matched History</th>
+                        <th>Status</th>
+                    </tr>
+                    </thead>
+                    <tbody id="task-list">
+                        <tr th:each="item: ${children}">
+                            <td th:text="${item.id}"></td>
+                            <td th:text="${#dates.format(item.gmtCreate,'yyyy-MM-dd HH:mm:ss')}"></td>
+                            <td th:text="${item.artifactId}"></td>
+                            <td th:text="${item.foundVersions}"></td>
+                            <td th:text="${item.matchCount}"></td>
+                            <td th:text="${item.matchHistory}"></td>
+                            <td th:text="${item.orderStatus}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div style="clear:both;height:30px;">&nbsp;</div>
+</div>
+
+<div th:replace="scripts"></div>
+</body>
+<script type="text/javascript" th:inline="javascript">
+$(document).ready(function(){
+    //$(document.body).height(700);
+});
+function saveNode() {
+    let taskId = $("INPUT[name='taskId']").val();
+    let groupId = $("INPUT[name='groupId']").val();
+    let artifactId = $("INPUT[name='artifactId']").val();
+
+    $.postEx("/api/task/save", {
+            'taskId': taskId,
+            'groupId': groupId,
+            'artifactId': artifactId,
+            'orderStatus': $("INPUT[name='orderStatus']").val()
+        }, function(jsonData){
+        if(0 == jsonData.code){
+            $.message('Save successful.', {title: 'hint'});
+        } else {
+            $.message(jsonData.message, {title: 'hint'});
+        }
+    }, "json");
+}
+
+function triggerTask() {
+    let taskId = $("INPUT[name='taskId']").val();
+
+    $.postEx("/api/task/trigger", {'taskId': taskId}, function(jsonData){
+        if(0 == jsonData.code){
+            $.message('Trigger Task successful.', {title: 'hint'});
+        } else {
+            $.message(jsonData.message, {title: 'hint'});
+        }
+    }, "json");
+}
+
+</script>
+</html>
+
+

@@ -1,0 +1,49 @@
+server:
+  port: 8090
+
+spring:
+  profiles:
+    active: dev
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://cz.found.ai:3306/test?characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&zeroDateTimeBehavior=convertToNull&useSSL=false&autoReconnect=true
+    username: super
+    password: w3R@video
+    hikari:
+      auto-commit: true
+      minimum-idle: 5
+      maximum-pool-size: 15
+      idle-timeout: 30000
+      pool-name: DatebookHikariCP
+      max-lifetime: 1200000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+
+  thymeleaf:
+    cache: false
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: always
+    serialization:
+      write-dates-as-timestamps: false
+
+  servlet:
+    multipart:
+      max-file-size: 1024MB
+      max-request-size: 1024MB
+      location: ${user.dir}/tmp
+
+mybatis:
+  mapper-locations: classpath:mybatis/mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+application:
+  delayq:
+    server: http://queue-test.youngfly.com.cn/
+    origin: 101

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Vulnerability Scan</title>
+    <base th:href="${#request.getContextPath()}+'/'">
+
+    <div th:replace="include"></div>
+
+    <style type="text/css">
+        .fault-total {
+            font-size: 18px;
+        }
+        .panel-group .panel {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="content" style="padding: 20px;">
+    <form id="itemForm" class="form-inline" style="margin-bottom: 10px;">
+        <div class="form-group">
+            <input type="text" class="form-control" name="projectName" size="20" placeholder="Project Name"/>
+        </div>
+        <div class="form-group">
+            <input type="text" class="form-control" name="keyword" size="50" placeholder="Please input search keyword"/>
+        </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-success" onclick="doSearch()"> Search </button>
+        </div>
+    </form>
+    <div class="panel-group" id="accordion" aria-multiselectable="true">
+        <div class="panel panel-success" style="margin-bottom: 20px;">
+            <div class="panel-heading" role="tab" id="headingOne">
+                <h4 class="panel-title">
+                    <a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                        Query Result
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseOne" class="panel-collapse" role="tabpanel" aria-labelledby="headingOne">
+                <div class="panel-body">
+                    <div id="current-total"></div>
+                    <table class="bootstrap-table table table-striped table-bordered">
+                        <thead><tr><th>SN</th><th>Commit ID</th><th>Commit Time</th><th>Author</th><th>Email</th></tr></thead>
+                        <tbody id="data-list">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="panel panel-primary">
+            <div class="panel-heading" role="tab" id="headingTwo">
+                <h4 class="panel-title">
+                    <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        The Vulnerability First Happened
+                    </a>
+                </h4>
+            </div>
+            <div class="panel-body" style="overflow-x: auto;">
+                <div id="fault-total"></div>
+                <table class="bootstrap-table table table-striped table-bordered">
+                    <thead><tr><th>SN</th><th>Last Commit ID</th><th>Last Commit Time</th><th>File Path</th><th>Changed Line</th><th>History Commit ID</th><th>History Commit Time</th></tr></thead>
+                    <tbody id="before-list">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading" role="tab">
+                <h4 class="panel-title">
+                    <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        Effective Versions
+                    </a>
+                </h4>
+            </div>
+            <div class="panel-body" style="overflow-x: auto;">
+                <div id="tags-total"></div>
+                <table class="bootstrap-table table table-striped table-bordered">
+                    <thead><tr><th>SN</th><th>Artifact ID</th><th>Version</th><th>Time</th></tr></thead>
+                    <tbody id="tag-list">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="row">
+            <button type="button" class="btn btn-default" onclick="listTasks()">Refresh Task List</button>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading" role="tab">
+                <h4 class="panel-title">
+                    <a class="collapsed" role="button">
+                        Related Tasks
+                    </a>
+                </h4>
+            </div>
+            <div class="panel-body" style="overflow-x: auto;">
+                <table class="bootstrap-table table table-striped table-bordered">
+                    <thead><tr><th>ID</th><th>Time</th><th>Project Name</th><th>Keyword</th><th>Status</th><th>Operation</th></tr></thead>
+                    <tbody id="task-list">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div style="clear:both;height:130px;">&nbsp;</div>
+</div>
+
+<div th:replace="scripts"></div>
+</body>
+<script type="text/javascript" th:inline="javascript">
+$(document).ready(function(){
+    listTasks();
+});
+let taskId = 0;
+let tagCount = 0;
+function doSearch() {
+    var keyword = $("INPUT[name='keyword']").val();
+    if("" == $.trim(keyword)) {
+        $.message("Please input search keyword");
+        return;
+    }
+
+    let d = dialog({title: 'hint', content: "processing, please wait..."});
+    d.showModal();
+
+    $.postEx("/api/git/query", {
+        "projectName": $("INPUT[name='projectName']").val(),
+        "keyword": keyword,
+    }, function(jsonData){
+        d.close();
+        if(0 == jsonData.code){
+            let currentItems = jsonData.data.currentItems;
+            let strArray = new Array();
+            $("#current-total").html('<div class="fault-total">total ' + currentItems.length + 'rows.</div>')
+            for(let i in currentItems) {
+                let item = currentItems[i];
+                strArray.push('<tr><td>' + (parseInt(i)+1) + '</td>');
+                strArray.push('<td><a href="javascript:void(0)" onclick="showDetail(\'' + item.revision + '\')">' + item.revision + '</a></td>');
+                strArray.push('<td>' + item.commitTime + '</td>');
+                strArray.push('<td>' + item.author + '</td>');
+                strArray.push('<td>' + item.email + '</td>');
+                strArray.push('</tr>');
+            }
+            $("#data-list").html(strArray.join(''));
+
+            let lastItems = jsonData.data.lastItems;
+            strArray = new Array();
+            $("#fault-total").html('<div class="fault-total">total ' + lastItems.length + ' rows, history commit ' +jsonData.data.beforeCommitCount+' rows.</div>');
+            for(let i in lastItems) {
+                let item = lastItems[i];
+                strArray.push('<tr><td>' + (parseInt(i)+1) + '</td>');
+                strArray.push('<td><a href="javascript:void(0)" onclick="showDetail(\'' + item.lastRevision + '\')">' + item.lastRevision + '</a></td>');
+                strArray.push('<td>' + item.lastCommitTime + '</td>');
+                strArray.push('<td>' + item.filePath + '</td>');
+                strArray.push('<td><textarea rows="4" cols="30">' + item.newLine + '</textarea></td>');
+                strArray.push('<td><a href="javascript:void(0)" onclick="showDetail(\'' + item.beforeRevision + '\')">' + item.beforeRevision + '</a></td>');
+                strArray.push('<td>' + item.beforeCommitTime + '</td>');
+                strArray.push('</tr>');
+            }
+            $("#before-list").html(strArray.join(''));
+
+            let tagItems = jsonData.data.tagItems;
+            taskId = jsonData.data.taskId;
+            strArray = new Array();
+            tagCount = tagItems.length;
+            $("#tags-total").html('<div class="fault-total">total ' + tagItems.length + ' rows.</div>')
+            for(let i in tagItems) {
+                let item = tagItems[i];
+                strArray.push('<tr><td>' + (parseInt(i)+1) + '</td>');
+                strArray.push('<td>' + item.artifactId + '</td>');
+                strArray.push('<td>' + item.version + '</td>');
+                strArray.push('<td>' + item.commitTime + '</td>');
+                strArray.push('</tr>');
+            }
+            $("#tag-list").html(strArray.join(''));
+
+            $.message('query successful', {time: 1, title: 'hint'});
+        } else {
+            $.message(jsonData.message, {title: 'hint'});
+        }
+    }, "json");
+}
+
+function taskDetail(taskId) {
+    dialog({title: 'loading... ',
+        url: '/api/task/detail?taskId=' + taskId,
+        onclose: function () {
+
+        },
+        oniframeload: function () {
+            this.title('Sub Projects');
+        },
+        width: '1200',
+    }).showModal();
+}
+
+function taskItem(taskId) {
+    dialog({title: 'loading... ',
+        url: '/api/task/showItem?taskId=' + taskId,
+        onclose: function () {
+
+        },
+        oniframeload: function () {
+            this.title('Dependents');
+        },
+        width: '1200'
+    }).showModal();
+}
+
+function deleteTask(taskId) {
+    $.postEx("/api/task/delete", {
+        'taskId': taskId
+    }, function(jsonData){
+        if(0 == jsonData.code){
+            $.message('Delete successful.', {title: 'hint'});
+        } else {
+            $.message(jsonData.message, {title: 'hint'});
+        }
+    }, "json");
+}
+
+function showDetail(revision) {
+    let projectName = $("INPUT[name='projectName']").val();
+    dialog({title: 'loading... ',
+        url: '/api/git/findByRevision?projectName=' + projectName + '&revision=' + revision,
+        onclose: function () {
+
+        },
+        oniframeload: function () {
+            this.title('Commit Detail');
+        },
+        width: '900',
+    }).showModal();
+}
+
+function listTasks() {
+    $.postEx("/api/task/query", {}, function(jsonData){
+        if(0 == jsonData.code){
+            let currentItems = jsonData.data;
+            let strArray = new Array();
+            for(let i in currentItems) {
+                let item = currentItems[i];
+                strArray.push('<tr><td>' + item.id + '</td>');
+                strArray.push('<td>' + item.gmtCreate + '</td>');
+                strArray.push('<td>' + item.projectName + '</td>');
+                strArray.push('<td>' + item.keyword + '</td>');
+                strArray.push('<td>' + item.orderStatus + '</td>');
+                strArray.push('<td><a href="javascript:void(0)" onclick="taskDetail(\'' + item.id + '\')">SubProjects</a>');
+                strArray.push('&nbsp;&nbsp;<a href="javascript:void(0)" onclick="taskItem(\'' + item.id + '\')">Dependents</a>');
+                strArray.push('&nbsp;&nbsp;<a href="javascript:void(0)" onclick="deleteTask(\'' + item.id + '\')">Delete</a></td>');
+                strArray.push('</tr>');
+            }
+            $("#task-list").html(strArray.join(''));
+        } else {
+            $.message(jsonData.message, {title: 'hint'});
+        }
+    }, "json");
+}
+</script>
+</html>
+
+
